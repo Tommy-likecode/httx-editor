@@ -1,15 +1,14 @@
 # Httx Editor
 
-V1 HTML / CSS / JS online editor for [Project Httx](https://github.com/Tommy-likecode).
-
-Edit HTML, CSS, and JavaScript in separate tabs, preview instantly in a sandboxed iframe, and export a single HTML file.
+HTML / CSS / JS editor for Project Httx — with **V1 code mode** and **V2 visual builder**.
 
 ## Stack
 
 - React + TypeScript + Vite
-- CodeMirror 6 (`@uiw/react-codemirror`)
-- localStorage draft persistence
-- iframe `srcdoc` preview with `sandbox="allow-scripts"`
+- CodeMirror 6
+- Visual canvas with component palette + property panel
+- iframe `srcdoc` preview (`sandbox="allow-scripts"`)
+- localStorage drafts + version history
 
 ## Quick start
 
@@ -20,28 +19,43 @@ npm run dev
 
 Open the URL Vite prints (default `http://localhost:5173`).
 
+## Modes
+
+- **可视化**：三栏（组件 / 画布 / 属性），拖拽搭建，属性实时生效，与 HTML 双向同步
+- **代码**：V1 工作流（HTML/CSS/JS 标签、格式化、快捷键）保持可用
+
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Vite development server |
+| `npm run dev` | Vite development server |
 | `npm run build` | Typecheck + production build |
-| `npm run preview` | Preview the production build |
-| `npm run smoke` | Playwright smoke test (dev server must be running) |
-| `npm run demo:record` | Record a short demo video via Playwright |
+| `npm run preview` | Preview production build |
+| `npm run smoke` | Playwright smoke test (dev server required) |
+| `npm run demo:record` | Record a short demo video |
 
-## V1 features
+## Features
 
-- Editor + preview split layout with resizable panes
-- Language tabs (HTML / CSS / JS) with merged live preview
-- Debounced preview refresh, console + runtime error capture
-- Format, save-draft shortcuts, clear draft, export single HTML
-- Templates, CDN resource inputs, theme + font size, fullscreen preview
-- Mobile-friendly stacked layout under 900px
+### V1
 
-## Deferred (V2)
+- Split editor / preview, language tabs, debounced live preview
+- Console + runtime error capture, format / save / export
+- Templates, CDN inputs, theme, font size, fullscreen, mobile layout
 
-Visual builder, property panel, AI generation, version history, device frames.
+### V2
+
+- Visual / Code mode toggle + three-column visual workbench
+- Palette drag-drop, select / delete / copy / reorder
+- Property panel (text, colors, size, spacing, align, radius, link, image URL/upload)
+- Code ↔ canvas sync, device preview (desktop / tablet / mobile)
+- Snippets, nav template, NL rule generation（如「登录表单」）
+- Chinese error hints, version history, import / export HTML
+
+## Deferred / optional
+
+- Full AI generation backend (rule engine ships; AI is a stub tip)
+- Pixel-perfect WYSIWYG for arbitrary hand-written HTML edge cases
+- IndexedDB (history currently uses localStorage)
 
 ## License
 

@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "smoke": "node scripts/smoke.mjs",
-    "demo:record": "node scripts/record-demo.mjs"
+    "smoke:v2": "node scripts/smoke-v2.mjs",
+    "demo:record": "node scripts/record-demo.mjs",
+    "demo:record:v2": "node scripts/record-v2.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

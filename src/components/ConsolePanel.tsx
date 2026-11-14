@@ -1,3 +1,4 @@
+import { explainJsError } from '../lib/errors-zh'
 import type { ConsoleEntry } from '../types'
 
 interface ConsolePanelProps {
@@ -30,7 +31,12 @@ export function ConsolePanel({ entries, open, onToggle, onClear }: ConsolePanelP
             entries.map((entry) => (
               <div key={entry.id} className={`console-line level-${entry.level}`}>
                 <span className="level">{entry.level}</span>
-                <span className="message">{entry.message}</span>
+                <div className="message-block">
+                  <span className="message">{entry.message}</span>
+                  {entry.level === 'error' ? (
+                    <span className="hint-zh">{entry.hint || explainJsError(entry.message)}</span>
+                  ) : null}
+                </div>
               </div>
             ))
           )}

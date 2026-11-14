@@ -1,14 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeEditor } from './components/CodeEditor'
+import { ComponentPalette } from './components/ComponentPalette'
 import { ConsolePanel } from './components/ConsolePanel'
 import { CdnPanel } from './components/CdnPanel'
+import { GenerateBar } from './components/GenerateBar'
+import { GuideBanner } from './components/GuideBanner'
+import { HistoryPanel } from './components/HistoryPanel'
 import { LanguageTabs } from './components/LanguageTabs'
 import { PreviewPane } from './components/PreviewPane'
+import { PropertyPanel } from './components/PropertyPanel'
 import { ResizableSplit } from './components/ResizableSplit'
 import { Toolbar } from './components/Toolbar'
+import { VisualCanvas } from './components/VisualCanvas'
 import { useDebouncedValue } from './hooks/useDebouncedValue'
+import { explainJsError } from './lib/errors-zh'
+import { clearHistory, loadHistory, pushHistory, type HistoryEntry } from './lib/history'
 import { buildExportDocument, buildPreviewDocument, downloadHtmlFile } from './lib/document'
 import { formatCode } from './lib/format'
+import { generateFromPrompt } from './lib/nl'
 import {
   clearDraft,
   DEFAULT_DRAFT,
@@ -18,6 +27,18 @@ import {
   saveSettings,
 } from './lib/storage'
 import { TEMPLATES } from './lib/templates'
+import {
+  appendNode,
+  createNodeFromKind,
+  deleteNode,
+  duplicateNode,
+  findNode,
+  moveNode,
+  updateNode,
+} from './lib/visual/ops'
+import { parseHtmlToVisual } from './lib/visual/parse'
+import { serializeVisualToHtml } from './lib/visual/serialize'
+import type { EditorMode, VisualDocument, VisualKind, VisualNode } from './lib/visual/types'
 import type { ConsoleEntry, ConsoleLevel, DraftDocument, Language } from './types'
 
 function createConsoleId() {
@@ -32,11 +53,17 @@ export default function App() {
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
   const [consoleOpen, setConsoleOpen] = useState(true)
   const [resourcesOpen, setResourcesOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory())
   const [fullscreenPreview, setFullscreenPreview] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [visualDoc, setVisualDoc] = useState<VisualDocument>(() => parseHtmlToVisual(loadDraft().html))
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const lastVisualHtml = useRef<string>('')
 
   const debouncedDraft = useDebouncedValue(draft, 300)
   const srcdoc = useMemo(() => buildPreviewDocument(debouncedDraft), [debouncedDraft])
+  const selectedNode = selectedId ? findNode(visualDoc, selectedId) : null
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
@@ -57,9 +84,25 @@ export default function App() {
 
   useEffect(() => {
     if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 2200)
+    const timer = window.setTimeout(() => setToast(null), 2400)
     return () => window.clearTimeout(timer)
   }, [toast])
+
+  // Code → Visual sync when HTML changes outside visual ops
+  useEffect(() => {
+    if (draft.html === lastVisualHtml.current) return
+    setVisualDoc(parseHtmlToVisual(draft.html))
+  }, [draft.html])
+
+  const applyVisualDoc = useCallback((nextDoc: VisualDocument, toastMsg?: string) => {
+    setVisualDoc(nextDoc)
+    setDraft((prev) => {
+      const html = serializeVisualToHtml(prev.html, nextDoc)
+      lastVisualHtml.current = html
+      return { ...prev, html }
+    })
+    if (toastMsg) setToast(toastMsg)
+  }, [])
 
   const currentCode = draft[language === 'js' ? 'js' : language]
 
@@ -85,7 +128,8 @@ export default function App() {
     const next = { ...draft, updatedAt: Date.now() }
     saveDraft(next)
     setSavedAt(next.updatedAt)
-    setToast('草稿已保存到本地')
+    setHistory(pushHistory(next, '手动保存'))
+    setToast('草稿已保存，并写入版本历史')
   }, [draft])
 
   const handleClearDraft = useCallback(() => {
@@ -96,6 +140,8 @@ export default function App() {
     setDraft(fresh)
     saveDraft(fresh)
     setSavedAt(fresh.updatedAt)
+    setVisualDoc(parseHtmlToVisual(fresh.html))
+    setSelectedId(null)
     setConsoleEntries([])
     setToast('草稿已清空')
   }, [])
@@ -105,37 +151,102 @@ export default function App() {
     setToast('已导出 HTML 文件')
   }, [draft])
 
+  const handleImport = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      setDraft((prev) => ({
+        ...prev,
+        html: text,
+        updatedAt: Date.now(),
+      }))
+      setSettings((prev) => ({ ...prev, mode: 'visual' }))
+      setToast(`已导入：${file.name}`)
+    }
+    reader.readAsText(file)
+  }, [])
+
   const handleLoadTemplate = useCallback((id: string) => {
     const template = TEMPLATES.find((item) => item.id === id)
     if (!template) return
-    setDraft({
+    const next = {
       html: template.html,
       css: template.css,
       js: template.js,
       cdnResources: template.cdnResources ?? [],
       updatedAt: Date.now(),
-    })
+    }
+    setDraft(next)
     setLanguage('html')
+    setSelectedId(null)
+    setHistory(pushHistory(next, `模板：${template.name}`))
     setToast(`已加载模板：${template.name}`)
   }, [])
 
-  const handleConsole = useCallback(
-    (entry: { level: ConsoleLevel; message: string }) => {
-      setConsoleEntries((prev) => [
-        ...prev.slice(-199),
-        {
-          id: createConsoleId(),
-          level: entry.level,
-          message: entry.message,
-          timestamp: Date.now(),
-        },
-      ])
-      if (entry.level === 'error') setConsoleOpen(true)
-    },
-    [],
-  )
+  const handleConsole = useCallback((entry: { level: ConsoleLevel; message: string }) => {
+    setConsoleEntries((prev) => [
+      ...prev.slice(-199),
+      {
+        id: createConsoleId(),
+        level: entry.level,
+        message: entry.message,
+        hint: entry.level === 'error' ? explainJsError(entry.message) : undefined,
+        timestamp: Date.now(),
+      },
+    ])
+    if (entry.level === 'error') setConsoleOpen(true)
+  }, [])
 
   const clearConsole = useCallback(() => setConsoleEntries([]), [])
+
+  const handleAddKind = useCallback(
+    (kind: VisualKind) => {
+      const node = createNodeFromKind(kind)
+      applyVisualDoc(appendNode(visualDoc, node), `已添加：${kind}`)
+      setSelectedId(node.id)
+    },
+    [applyVisualDoc, visualDoc],
+  )
+
+  const handleInsertSnippet = useCallback(
+    (html: string, name: string) => {
+      const bodyMatch = draft.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+      const currentBody = bodyMatch?.[1]?.trim() ?? draft.html
+      const nextBody = `${currentBody}\n${html}`
+      const nextHtml = draft.html.replace(
+        /<body([^>]*)>[\s\S]*?<\/body>/i,
+        `<body$1>\n${nextBody}\n</body>`,
+      )
+      setDraft((prev) => ({ ...prev, html: nextHtml }))
+      setToast(`已插入片段：${name}`)
+    },
+    [draft.html],
+  )
+
+  const handleGenerate = useCallback(
+    (prompt: string) => {
+      const result = generateFromPrompt(prompt)
+      if (!result.matched) {
+        setToast(result.tip)
+        return
+      }
+      const generated = parseHtmlToVisual(`<body>${result.htmlSnippet}</body>`)
+      const merged: VisualDocument = {
+        nodes: [...visualDoc.nodes, ...generated.nodes],
+      }
+      applyVisualDoc(merged, result.tip)
+      if (generated.nodes[0]) setSelectedId(generated.nodes[0].id)
+      setSettings((prev) => ({ ...prev, mode: 'visual' }))
+    },
+    [applyVisualDoc, visualDoc.nodes],
+  )
+
+  const handleNodeChange = useCallback(
+    (node: VisualNode) => {
+      applyVisualDoc(updateNode(visualDoc, node.id, () => node))
+    },
+    [applyVisualDoc, visualDoc],
+  )
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -151,21 +262,45 @@ export default function App() {
       if (event.key === 'Escape' && fullscreenPreview) {
         setFullscreenPreview(false)
       }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedId && settings.mode === 'visual') {
+        const target = event.target as HTMLElement | null
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return
+        }
+        event.preventDefault()
+        applyVisualDoc(deleteNode(visualDoc, selectedId), '已删除选中元素')
+        setSelectedId(null)
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [fullscreenPreview, handleFormat, handleSave])
+  }, [
+    applyVisualDoc,
+    fullscreenPreview,
+    handleFormat,
+    handleSave,
+    selectedId,
+    settings.mode,
+    visualDoc,
+  ])
+
+  const mode: EditorMode = settings.mode
 
   return (
     <div className="app-shell">
       <Toolbar
+        mode={mode}
         theme={settings.theme}
         fontSize={settings.fontSize}
         savedAt={savedAt}
+        resourcesOpen={resourcesOpen}
+        historyOpen={historyOpen}
+        onModeChange={(next) => setSettings((prev) => ({ ...prev, mode: next }))}
         onFormat={handleFormat}
         onSave={handleSave}
         onClearDraft={handleClearDraft}
         onExport={handleExport}
+        onImport={handleImport}
         onThemeToggle={() =>
           setSettings((prev) => ({
             ...prev,
@@ -175,8 +310,15 @@ export default function App() {
         onFontSizeChange={(fontSize) => setSettings((prev) => ({ ...prev, fontSize }))}
         onLoadTemplate={handleLoadTemplate}
         onToggleResources={() => setResourcesOpen((open) => !open)}
-        resourcesOpen={resourcesOpen}
+        onToggleHistory={() => setHistoryOpen((open) => !open)}
       />
+
+      <GuideBanner
+        visible={!settings.guideDismissed && mode === 'visual'}
+        onDismiss={() => setSettings((prev) => ({ ...prev, guideDismissed: true }))}
+      />
+
+      <GenerateBar onGenerate={handleGenerate} />
 
       <CdnPanel
         open={resourcesOpen}
@@ -184,28 +326,79 @@ export default function App() {
         onChange={(cdnResources) => setDraft((prev) => ({ ...prev, cdnResources }))}
       />
 
+      <HistoryPanel
+        open={historyOpen}
+        entries={history}
+        onRestore={(entry) => {
+          setDraft(entry.draft)
+          setSelectedId(null)
+          setToast(`已恢复：${entry.label}`)
+        }}
+        onSnapshot={() => {
+          setHistory(pushHistory(draft, '手动快照'))
+          setToast('已创建版本快照')
+        }}
+        onClear={() => {
+          clearHistory()
+          setHistory([])
+          setToast('版本历史已清空')
+        }}
+        onClose={() => setHistoryOpen(false)}
+      />
+
       <ResizableSplit
         ratio={settings.editorRatio}
         onRatioChange={(editorRatio) => setSettings((prev) => ({ ...prev, editorRatio }))}
         left={
-          <section className="editor-pane">
-            <div className="pane-header">
-              <LanguageTabs active={language} onChange={setLanguage} />
-              <span className="hint">Ctrl/Cmd+S 保存 · Shift+Alt+F 格式化</span>
-            </div>
-            <CodeEditor
-              language={language}
-              value={currentCode}
-              onChange={updateCode}
-              theme={settings.theme}
-              fontSize={settings.fontSize}
-            />
-          </section>
+          mode === 'visual' ? (
+            <section className="visual-workbench" data-testid="visual-workbench">
+              <ComponentPalette onAdd={handleAddKind} onInsertSnippet={handleInsertSnippet} />
+              <VisualCanvas
+                doc={visualDoc}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onDropKind={(kind) => handleAddKind(kind as VisualKind)}
+              />
+              <PropertyPanel
+                node={selectedNode}
+                onChange={handleNodeChange}
+                onDelete={() => {
+                  if (!selectedId) return
+                  applyVisualDoc(deleteNode(visualDoc, selectedId), '已删除选中元素')
+                  setSelectedId(null)
+                }}
+                onDuplicate={() => {
+                  if (!selectedId) return
+                  applyVisualDoc(duplicateNode(visualDoc, selectedId), '已复制选中元素')
+                }}
+                onMove={(direction) => {
+                  if (!selectedId) return
+                  applyVisualDoc(moveNode(visualDoc, selectedId, direction))
+                }}
+              />
+            </section>
+          ) : (
+            <section className="editor-pane">
+              <div className="pane-header">
+                <LanguageTabs active={language} onChange={setLanguage} />
+                <span className="hint">Ctrl/Cmd+S 保存 · Shift+Alt+F 格式化</span>
+              </div>
+              <CodeEditor
+                language={language}
+                value={currentCode}
+                onChange={updateCode}
+                theme={settings.theme}
+                fontSize={settings.fontSize}
+              />
+            </section>
+          )
         }
         right={
           <section className="preview-column">
             <PreviewPane
               srcdoc={srcdoc}
+              device={settings.device}
+              onDeviceChange={(device) => setSettings((prev) => ({ ...prev, device }))}
               fullscreen={fullscreenPreview}
               onToggleFullscreen={() => setFullscreenPreview((value) => !value)}
               onConsole={handleConsole}
