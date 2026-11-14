@@ -267,4 +267,55 @@ a {
 }`,
     js: `console.info('落地页模板就绪')`,
   },
+  {
+    id: 'nav',
+    name: '导航页',
+    description: '顶栏导航 + 内容区',
+    html: `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>导航</title>
+</head>
+<body>
+  <nav class="topnav">
+    <a href="#">首页</a>
+    <a href="#">文档</a>
+    <a href="#">关于</a>
+  </nav>
+  <main class="content">
+    <h1>欢迎使用 Httx</h1>
+    <p>从导航模板开始，继续可视化编辑。</p>
+  </main>
+</body>
+</html>`,
+    css: `body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.topnav {
+  display: flex;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: #0f172a;
+}
+
+.topnav a {
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.topnav a:hover {
+  color: #5eead4;
+}
+
+.content {
+  padding: 2rem;
+  max-width: 720px;
+}`,
+    js: `console.info('导航模板就绪')`,
+  },
 ]

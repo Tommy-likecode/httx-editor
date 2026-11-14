@@ -1,40 +1,53 @@
+import { ModeToggle } from './ModeToggle'
 import { TEMPLATES } from '../lib/templates'
+import type { EditorMode } from '../lib/visual/types'
 import type { ThemeMode } from '../types'
 
 interface ToolbarProps {
+  mode: EditorMode
   theme: ThemeMode
   fontSize: number
   savedAt: number | null
+  resourcesOpen: boolean
+  historyOpen: boolean
+  onModeChange: (mode: EditorMode) => void
   onFormat: () => void
   onSave: () => void
   onClearDraft: () => void
   onExport: () => void
+  onImport: (file: File) => void
   onThemeToggle: () => void
   onFontSizeChange: (size: number) => void
   onLoadTemplate: (id: string) => void
   onToggleResources: () => void
-  resourcesOpen: boolean
+  onToggleHistory: () => void
 }
 
 export function Toolbar({
+  mode,
   theme,
   fontSize,
   savedAt,
+  resourcesOpen,
+  historyOpen,
+  onModeChange,
   onFormat,
   onSave,
   onClearDraft,
   onExport,
+  onImport,
   onThemeToggle,
   onFontSizeChange,
   onLoadTemplate,
   onToggleResources,
-  resourcesOpen,
+  onToggleHistory,
 }: ToolbarProps) {
   return (
     <header className="toolbar">
       <div className="brand-block">
         <span className="brand">Httx</span>
-        <span className="brand-sub">HTML 编辑器</span>
+        <span className="brand-sub">可视化 HTML 编辑器</span>
+        <ModeToggle mode={mode} onChange={onModeChange} />
       </div>
 
       <div className="toolbar-group">
@@ -73,12 +86,32 @@ export function Toolbar({
         <button type="button" onClick={onExport}>
           导出 HTML
         </button>
+        <label className="import-btn">
+          导入 HTML
+          <input
+            type="file"
+            accept=".html,text/html"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) onImport(file)
+              event.target.value = ''
+            }}
+          />
+        </label>
         <button
           type="button"
           className={resourcesOpen ? 'active' : undefined}
           onClick={onToggleResources}
         >
           CDN 资源
+        </button>
+        <button
+          type="button"
+          className={historyOpen ? 'active' : undefined}
+          onClick={onToggleHistory}
+        >
+          版本历史
         </button>
       </div>
 

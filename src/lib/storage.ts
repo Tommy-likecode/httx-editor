@@ -97,6 +97,9 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   theme: 'light',
   fontSize: 14,
   editorRatio: 0.5,
+  mode: 'visual',
+  device: 'desktop',
+  guideDismissed: false,
 }
 
 export function loadDraft(): DraftDocument {
@@ -143,6 +146,10 @@ export function loadSettings(): EditorSettings {
         parsed.editorRatio <= 0.75
           ? parsed.editorRatio
           : DEFAULT_SETTINGS.editorRatio,
+      mode: parsed.mode === 'code' ? 'code' : 'visual',
+      device:
+        parsed.device === 'mobile' || parsed.device === 'tablet' ? parsed.device : 'desktop',
+      guideDismissed: Boolean(parsed.guideDismissed),
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
