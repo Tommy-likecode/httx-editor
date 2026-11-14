@@ -19,6 +19,7 @@ export function LanguageTabs({ active, onChange }: LanguageTabsProps) {
           key={tab.id}
           type="button"
           role="tab"
+          data-testid={`tab-${tab.id}`}
           aria-selected={active === tab.id}
           className={active === tab.id ? 'tab active' : 'tab'}
           onClick={() => onChange(tab.id)}

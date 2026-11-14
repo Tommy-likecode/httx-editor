@@ -279,11 +279,14 @@ button.danger {
 }
 
 .tab {
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  padding: 0.35rem 0.7rem;
+  padding: 0.45rem 0.9rem;
   border-bottom: 2px solid transparent;
+  min-width: 3.5rem;
+  position: relative;
+  z-index: 1;
 }
 
 .tab.active {
