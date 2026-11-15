@@ -21,11 +21,18 @@ export interface VisualStyles {
   borderRadius?: string
   width?: string
   height?: string
+  minHeight?: string
   fontFamily?: string
   fontWeight?: string
   display?: string
   gap?: string
   flexDirection?: string
+  alignItems?: string
+  justifyContent?: string
+  position?: string
+  left?: string
+  top?: string
+  zIndex?: string
 }
 
 export interface VisualNode {
@@ -50,3 +57,14 @@ export interface PaletteItem {
 
 export type EditorMode = 'visual' | 'code'
 export type DevicePreset = 'desktop' | 'tablet' | 'mobile'
+
+export type VariableType = 'text' | 'color' | 'number' | 'url'
+
+export interface DesignVariable {
+  id: string
+  name: string
+  type: VariableType
+  value: string
+}
+
+export type DropPlacement = 'before' | 'after' | 'inside'

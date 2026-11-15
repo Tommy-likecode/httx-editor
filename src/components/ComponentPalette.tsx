@@ -1,13 +1,23 @@
 import { PALETTE } from '../lib/visual/ops'
 import { SNIPPETS } from '../lib/snippets'
-import type { VisualKind } from '../lib/visual/types'
+import type { DesignVariable, VisualKind } from '../lib/visual/types'
+import { VariablesPanel } from './VariablesPanel'
 
 interface ComponentPaletteProps {
   onAdd: (kind: VisualKind) => void
   onInsertSnippet: (html: string, name: string) => void
+  variables: DesignVariable[]
+  onVariablesChange: (variables: DesignVariable[]) => void
+  onInsertVariableToken: (token: string) => void
 }
 
-export function ComponentPalette({ onAdd, onInsertSnippet }: ComponentPaletteProps) {
+export function ComponentPalette({
+  onAdd,
+  onInsertSnippet,
+  variables,
+  onVariablesChange,
+  onInsertVariableToken,
+}: ComponentPaletteProps) {
   return (
     <aside className="palette-pane">
       <div className="pane-header">
@@ -51,6 +61,12 @@ export function ComponentPalette({ onAdd, onInsertSnippet }: ComponentPalettePro
           </button>
         ))}
       </div>
+
+      <VariablesPanel
+        variables={variables}
+        onChange={onVariablesChange}
+        onInsertToken={onInsertVariableToken}
+      />
     </aside>
   )
 }

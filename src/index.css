@@ -520,7 +520,180 @@ button.danger {
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 240px;
+  grid-template-columns: 200px minmax(0, 1fr) 260px;
+}
+
+.canvas-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+.hierarchy-tree {
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hierarchy-list {
+  overflow: auto;
+  display: grid;
+  align-content: start;
+}
+
+.hierarchy-row {
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: transparent;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.hierarchy-row.selected {
+  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+}
+
+.hierarchy-kind {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.hierarchy-preview {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drop-line {
+  height: 2px;
+  margin: 0.15rem 0;
+  background: transparent;
+}
+
+.drop-line.active {
+  background: var(--accent);
+}
+
+.drop-zone {
+  height: 8px;
+}
+
+.node-shell {
+  position: relative;
+}
+
+.node-shell.drop-inside {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+
+.node-badge {
+  position: absolute;
+  top: -0.55rem;
+  left: 0;
+  z-index: 2;
+  font-size: 0.68rem;
+  background: var(--accent);
+  color: #ecfdf5;
+  padding: 0.05rem 0.35rem;
+}
+
+.selection-tools {
+  position: sticky;
+  bottom: 0.75rem;
+  display: inline-flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 0.35rem;
+}
+
+.move-handle,
+.resize-handle {
+  cursor: grab;
+}
+
+.variables-panel {
+  border-top: 1px solid var(--border);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.variables-add {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.3rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.variables-add input,
+.variables-add select,
+.variable-row input {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 0.3rem 0.4rem;
+  color: var(--text);
+  width: 100%;
+}
+
+.variables-list {
+  overflow: auto;
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem 0.7rem;
+}
+
+.variable-row {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  padding: 0.4rem;
+  background: var(--bg);
+}
+
+.variable-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.variable-meta code {
+  color: var(--accent);
+}
+
+.variable-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.var-insert-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.color-row {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 0.35rem;
+}
+
+.palette-pane {
+  overflow: auto;
 }
 
 .palette-pane,

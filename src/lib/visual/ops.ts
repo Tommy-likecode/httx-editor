@@ -375,3 +375,170 @@ export function moveNode(
   }
   return { nodes: reorder(doc.nodes) }
 }
+
+export function canAcceptChildren(node: VisualNode): boolean {
+  return (
+    node.kind === 'container' ||
+    node.kind === 'section' ||
+    node.kind === 'card' ||
+    node.kind === 'form' ||
+    node.kind === 'nav' ||
+    ['div', 'section', 'main', 'article', 'form', 'nav', 'header', 'footer'].includes(node.tag)
+  )
+}
+
+export function getParentId(doc: VisualDocument, id: string): string | null {
+  const search = (nodes: VisualNode[], parent: string | null): string | null | undefined => {
+    for (const node of nodes) {
+      if (node.id === id) return parent
+      const child = search(node.children, node.id)
+      if (child !== undefined) return child
+    }
+    return undefined
+  }
+  const result = search(doc.nodes, null)
+  return result === undefined ? null : result
+}
+
+export function getNodePath(doc: VisualDocument, id: string): VisualNode[] {
+  const path: VisualNode[] = []
+  const walk = (nodes: VisualNode[]): boolean => {
+    for (const node of nodes) {
+      path.push(node)
+      if (node.id === id) return true
+      if (walk(node.children)) return true
+      path.pop()
+    }
+    return false
+  }
+  walk(doc.nodes)
+  return path
+}
+
+function extractNode(
+  nodes: VisualNode[],
+  id: string,
+): { nodes: VisualNode[]; extracted: VisualNode | null } {
+  const result: VisualNode[] = []
+  let extracted: VisualNode | null = null
+  for (const node of nodes) {
+    if (node.id === id) {
+      extracted = node
+      continue
+    }
+    const childResult = extractNode(node.children, id)
+    if (childResult.extracted) extracted = childResult.extracted
+    result.push({ ...node, children: childResult.nodes })
+  }
+  return { nodes: result, extracted }
+}
+
+function insertAt(
+  nodes: VisualNode[],
+  targetId: string | null,
+  placement: 'before' | 'after' | 'inside',
+  node: VisualNode,
+): VisualNode[] {
+  if (!targetId) {
+    return placement === 'before' ? [node, ...nodes] : [...nodes, node]
+  }
+
+  const out: VisualNode[] = []
+  for (const current of nodes) {
+    if (current.id === targetId) {
+      if (placement === 'before') {
+        out.push(node, current)
+      } else if (placement === 'after') {
+        out.push(current, node)
+      } else {
+        out.push({ ...current, children: [...current.children, node] })
+      }
+      continue
+    }
+    out.push({
+      ...current,
+      children: insertAt(current.children, targetId, placement, node),
+    })
+  }
+  return out
+}
+
+/** Move a node before/after/inside another node (or to root). */
+export function relocateNode(
+  doc: VisualDocument,
+  sourceId: string,
+  targetId: string | null,
+  placement: 'before' | 'after' | 'inside',
+): VisualDocument {
+  if (sourceId === targetId) return doc
+  if (targetId) {
+    const path = getNodePath(doc, targetId)
+    if (path.some((n) => n.id === sourceId)) return doc // prevent drop into self/descendant
+  }
+
+  const extracted = extractNode(doc.nodes, sourceId)
+  if (!extracted.extracted) return doc
+
+  if (placement === 'inside' && targetId) {
+    const target = findNode({ nodes: extracted.nodes }, targetId) || findNode(doc, targetId)
+    if (target && !canAcceptChildren(target)) return doc
+  }
+
+  return {
+    nodes: insertAt(extracted.nodes, targetId, placement, extracted.extracted),
+  }
+}
+
+export function wrapInContainer(doc: VisualDocument, id: string): VisualDocument {
+  const node = findNode(doc, id)
+  if (!node) return doc
+  const wrapper = createNodeFromKind('container')
+  wrapper.children = [{ ...node }]
+  wrapper.styles = {
+    ...wrapper.styles,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+    padding: '1rem',
+    minHeight: '48px',
+  }
+
+  const replace = (nodes: VisualNode[]): VisualNode[] =>
+    nodes.map((n) => {
+      if (n.id === id) return wrapper
+      return { ...n, children: replace(n.children) }
+    })
+
+  return { nodes: replace(doc.nodes) }
+}
+
+export function unwrapContainer(doc: VisualDocument, id: string): VisualDocument {
+  const node = findNode(doc, id)
+  if (!node || !canAcceptChildren(node) || node.children.length === 0) return doc
+
+  const replace = (nodes: VisualNode[]): VisualNode[] => {
+    const out: VisualNode[] = []
+    for (const n of nodes) {
+      if (n.id === id) {
+        out.push(...n.children)
+      } else {
+        out.push({ ...n, children: replace(n.children) })
+      }
+    }
+    return out
+  }
+
+  return { nodes: replace(doc.nodes) }
+}
+
+export function flattenTree(doc: VisualDocument): { node: VisualNode; depth: number }[] {
+  const rows: { node: VisualNode; depth: number }[] = []
+  const walk = (nodes: VisualNode[], depth: number) => {
+    for (const node of nodes) {
+      rows.push({ node, depth })
+      walk(node.children, depth + 1)
+    }
+  }
+  walk(doc.nodes, 0)
+  return rows
+}

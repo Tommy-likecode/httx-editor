@@ -1,4 +1,4 @@
-import type { DevicePreset, EditorMode } from './lib/visual/types'
+import type { DesignVariable, DevicePreset, EditorMode } from './lib/visual/types'
 
 export type Language = 'html' | 'css' | 'js'
 
@@ -9,6 +9,7 @@ export interface DraftDocument {
   css: string
   js: string
   cdnResources: string[]
+  variables: DesignVariable[]
   updatedAt: number
 }
 

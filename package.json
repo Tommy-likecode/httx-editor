@@ -10,8 +10,10 @@
     "preview": "vite preview",
     "smoke": "node scripts/smoke.mjs",
     "smoke:v2": "node scripts/smoke-v2.mjs",
+    "smoke:v2b": "node scripts/smoke-v2b.mjs",
     "demo:record": "node scripts/record-demo.mjs",
-    "demo:record:v2": "node scripts/record-v2.mjs"
+    "demo:record:v2": "node scripts/record-v2.mjs",
+    "demo:record:v2b": "node scripts/record-v2b.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
