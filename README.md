@@ -51,9 +51,16 @@ Open the URL Vite prints (default `http://localhost:5173`).
 - Snippets, nav template, NL rule generation（如「登录表单」）
 - Chinese error hints, version history, import / export HTML
 
+### V2b usability
+
+- Drag to reorder / nest into containers; free-move & resize handles
+- Structure tree for nested selection; wrap/unwrap (成组/解组)
+- Variables panel (`{{name}}`) bound into text/styles; resolved in preview/export
+
 ## Deferred / optional
 
 - Full AI generation backend (rule engine ships; AI is a stub tip)
+- Full Figma-level freeform artboard / constraints
 - Pixel-perfect WYSIWYG for arbitrary hand-written HTML edge cases
 - IndexedDB (history currently uses localStorage)
 
