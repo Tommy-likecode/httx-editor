@@ -1,4 +1,5 @@
 import type { DraftDocument } from '../types'
+import { buildCssVars, resolveVariables } from './variables'
 
 const BRIDGE_SCRIPT = `
 <script>
@@ -75,9 +76,20 @@ function buildCdnTags(resources: string[]): string {
     .join('\n')
 }
 
-export function buildPreviewDocument(draft: DraftDocument): string {
+function resolveDraftHtml(draft: DraftDocument): { headExtra: string; body: string; css: string } {
+  const vars = draft.variables ?? []
   const { headExtra, body } = extractBodyInner(draft.html)
+  return {
+    headExtra: resolveVariables(headExtra, vars),
+    body: resolveVariables(body, vars),
+    css: `${buildCssVars(vars)}${resolveVariables(draft.css, vars)}`,
+  }
+}
+
+export function buildPreviewDocument(draft: DraftDocument): string {
+  const { headExtra, body, css } = resolveDraftHtml(draft)
   const cdnTags = buildCdnTags(draft.cdnResources)
+  const varsJson = JSON.stringify(draft.variables ?? [], null, 2)
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -87,12 +99,13 @@ export function buildPreviewDocument(draft: DraftDocument): string {
 ${cdnTags}
 ${headExtra}
 <style>
-${draft.css}
+${css}
 </style>
 ${BRIDGE_SCRIPT}
 </head>
 <body>
 ${body}
+<script type="application/json" id="httx-variables">${varsJson.replace(/</g, '\\u003c')}<\/script>
 <script>
 try {
 ${draft.js}
@@ -105,8 +118,9 @@ ${draft.js}
 }
 
 export function buildExportDocument(draft: DraftDocument): string {
-  const { headExtra, body } = extractBodyInner(draft.html)
+  const { headExtra, body, css } = resolveDraftHtml(draft)
   const cdnTags = buildCdnTags(draft.cdnResources)
+  const varsJson = JSON.stringify(draft.variables ?? [], null, 2)
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -117,11 +131,12 @@ export function buildExportDocument(draft: DraftDocument): string {
 ${cdnTags}
 ${headExtra}
 <style>
-${draft.css}
+${css}
 </style>
 </head>
 <body>
 ${body}
+<script type="application/json" id="httx-variables">${varsJson.replace(/</g, '\\u003c')}<\/script>
 <script>
 ${draft.js}
 <\/script>

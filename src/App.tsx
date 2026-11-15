@@ -34,11 +34,20 @@ import {
   duplicateNode,
   findNode,
   moveNode,
+  relocateNode,
   updateNode,
+  wrapInContainer,
+  unwrapContainer,
 } from './lib/visual/ops'
 import { parseHtmlToVisual } from './lib/visual/parse'
 import { serializeVisualToHtml } from './lib/visual/serialize'
-import type { EditorMode, VisualDocument, VisualKind, VisualNode } from './lib/visual/types'
+import type {
+  DropPlacement,
+  EditorMode,
+  VisualDocument,
+  VisualKind,
+  VisualNode,
+} from './lib/visual/types'
 import type { ConsoleEntry, ConsoleLevel, DraftDocument, Language } from './types'
 
 function createConsoleId() {
@@ -169,11 +178,12 @@ export default function App() {
   const handleLoadTemplate = useCallback((id: string) => {
     const template = TEMPLATES.find((item) => item.id === id)
     if (!template) return
-    const next = {
+    const next: DraftDocument = {
       html: template.html,
       css: template.css,
       js: template.js,
       cdnResources: template.cdnResources ?? [],
+      variables: draft.variables,
       updatedAt: Date.now(),
     }
     setDraft(next)
@@ -181,7 +191,7 @@ export default function App() {
     setSelectedId(null)
     setHistory(pushHistory(next, `模板：${template.name}`))
     setToast(`已加载模板：${template.name}`)
-  }, [])
+  }, [draft.variables])
 
   const handleConsole = useCallback((entry: { level: ConsoleLevel; message: string }) => {
     setConsoleEntries((prev) => [
@@ -200,10 +210,57 @@ export default function App() {
   const clearConsole = useCallback(() => setConsoleEntries([]), [])
 
   const handleAddKind = useCallback(
-    (kind: VisualKind) => {
+    (kind: VisualKind, targetId: string | null = null, placement: DropPlacement = 'after') => {
       const node = createNodeFromKind(kind)
-      applyVisualDoc(appendNode(visualDoc, node), `已添加：${kind}`)
+      if (!targetId) {
+        applyVisualDoc(appendNode(visualDoc, node), `已添加：${kind}`)
+      } else if (placement === 'inside') {
+        applyVisualDoc(appendNode(visualDoc, node, targetId), `已添加进容器：${kind}`)
+      } else {
+        applyVisualDoc(relocateNode(appendNode(visualDoc, node), node.id, targetId, placement), `已添加：${kind}`)
+      }
       setSelectedId(node.id)
+    },
+    [applyVisualDoc, visualDoc],
+  )
+
+  const handleRelocate = useCallback(
+    (sourceId: string, targetId: string | null, placement: DropPlacement) => {
+      applyVisualDoc(relocateNode(visualDoc, sourceId, targetId, placement), '已移动元素')
+      setSelectedId(sourceId)
+    },
+    [applyVisualDoc, visualDoc],
+  )
+
+  const handleFreeMove = useCallback(
+    (id: string, left: number, top: number) => {
+      applyVisualDoc(
+        updateNode(visualDoc, id, (node) => ({
+          ...node,
+          styles: {
+            ...node.styles,
+            position: node.styles.position || 'relative',
+            left: `${left}px`,
+            top: `${top}px`,
+          },
+        })),
+      )
+    },
+    [applyVisualDoc, visualDoc],
+  )
+
+  const handleResize = useCallback(
+    (id: string, width: number, height: number) => {
+      applyVisualDoc(
+        updateNode(visualDoc, id, (node) => ({
+          ...node,
+          styles: {
+            ...node.styles,
+            width: `${width}px`,
+            height: `${height}px`,
+          },
+        })),
+      )
     },
     [applyVisualDoc, visualDoc],
   )
@@ -352,15 +409,36 @@ export default function App() {
         left={
           mode === 'visual' ? (
             <section className="visual-workbench" data-testid="visual-workbench">
-              <ComponentPalette onAdd={handleAddKind} onInsertSnippet={handleInsertSnippet} />
+              <ComponentPalette
+                onAdd={(kind) => handleAddKind(kind)}
+                onInsertSnippet={handleInsertSnippet}
+                variables={draft.variables}
+                onVariablesChange={(variables) => setDraft((prev) => ({ ...prev, variables }))}
+                onInsertVariableToken={(token) => {
+                  if (!selectedNode || selectedNode.text === undefined) {
+                    setToast('请先选中带文本的元素，再插入变量')
+                    return
+                  }
+                  handleNodeChange({
+                    ...selectedNode,
+                    text: `${selectedNode.text || ''}${token}`,
+                  })
+                }}
+              />
               <VisualCanvas
                 doc={visualDoc}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
-                onDropKind={(kind) => handleAddKind(kind as VisualKind)}
+                onDropKind={(kind, targetId, placement) =>
+                  handleAddKind(kind as VisualKind, targetId, placement)
+                }
+                onRelocate={handleRelocate}
+                onFreeMove={handleFreeMove}
+                onResize={handleResize}
               />
               <PropertyPanel
                 node={selectedNode}
+                variables={draft.variables}
                 onChange={handleNodeChange}
                 onDelete={() => {
                   if (!selectedId) return
@@ -374,6 +452,15 @@ export default function App() {
                 onMove={(direction) => {
                   if (!selectedId) return
                   applyVisualDoc(moveNode(visualDoc, selectedId, direction))
+                }}
+                onWrap={() => {
+                  if (!selectedId) return
+                  const next = wrapInContainer(visualDoc, selectedId)
+                  applyVisualDoc(next, '已成组为容器')
+                }}
+                onUnwrap={() => {
+                  if (!selectedId) return
+                  applyVisualDoc(unwrapContainer(visualDoc, selectedId), '已解组容器')
                 }}
               />
             </section>

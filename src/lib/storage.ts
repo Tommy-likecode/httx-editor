@@ -1,4 +1,6 @@
 import type { DraftDocument, EditorSettings } from '../types'
+import { DEFAULT_VARIABLES } from './variables'
+import type { DesignVariable } from './visual/types'
 
 const DRAFT_KEY = 'httx.draft.v1'
 const SETTINGS_KEY = 'httx.settings.v1'
@@ -90,7 +92,29 @@ export const DEFAULT_DRAFT: DraftDocument = {
   css: DEFAULT_CSS,
   js: DEFAULT_JS,
   cdnResources: [],
+  variables: DEFAULT_VARIABLES,
   updatedAt: Date.now(),
+}
+
+function normalizeVariables(value: unknown): DesignVariable[] {
+  if (!Array.isArray(value)) return [...DEFAULT_VARIABLES]
+  return value
+    .filter((item): item is DesignVariable => {
+      return (
+        !!item &&
+        typeof item === 'object' &&
+        typeof (item as DesignVariable).id === 'string' &&
+        typeof (item as DesignVariable).name === 'string' &&
+        typeof (item as DesignVariable).value === 'string'
+      )
+    })
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      type:
+        item.type === 'color' || item.type === 'number' || item.type === 'url' ? item.type : 'text',
+      value: item.value,
+    }))
 }
 
 export const DEFAULT_SETTINGS: EditorSettings = {
@@ -114,6 +138,7 @@ export function loadDraft(): DraftDocument {
       cdnResources: Array.isArray(parsed.cdnResources)
         ? parsed.cdnResources.filter((item): item is string => typeof item === 'string')
         : [],
+      variables: normalizeVariables(parsed.variables),
       updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
     }
   } catch {

@@ -11,11 +11,18 @@ const STYLE_KEYS: (keyof VisualStyles)[] = [
   'borderRadius',
   'width',
   'height',
+  'minHeight',
   'fontFamily',
   'fontWeight',
   'display',
   'gap',
   'flexDirection',
+  'alignItems',
+  'justifyContent',
+  'position',
+  'left',
+  'top',
+  'zIndex',
 ]
 
 function camelStyle(name: string): keyof VisualStyles | null {
