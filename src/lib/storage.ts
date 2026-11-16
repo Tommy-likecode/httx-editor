@@ -120,7 +120,8 @@ function normalizeVariables(value: unknown): DesignVariable[] {
 export const DEFAULT_SETTINGS: EditorSettings = {
   theme: 'light',
   fontSize: 14,
-  editorRatio: 0.5,
+  /* Slightly favor the editor/canvas pane over preview on first paint */
+  editorRatio: 0.58,
   mode: 'visual',
   device: 'desktop',
   guideDismissed: false,
